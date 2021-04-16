@@ -11,11 +11,11 @@ set(CMAKE_BUILD_TYPE Debug)
 if(DEFINED ARCH)
   if(${ARCH} STREQUAL "RASPBERRY")
     message("-- Created ${ARCH} compilation.")  
-    set (LIBS hardware interface)
+    set (LIBS hardware interface rt pthread)
     set (FOLDER "raspberry")  
   elseif(${ARCH} STREQUAL "PC")
     message("-- Created ${ARCH} compilation.") 
-    set (LIBS interface)
+    set (LIBS interface rt pthread)
     set (FOLDER "pc")
   endif()
 else()
@@ -28,9 +28,21 @@ else()
   message(FATAL_ERROR "")
 endif()
 
+# build lib semaphore
+add_library(semaphore "")
+target_sources(semaphore
+  PUBLIC 
+  ${CMAKE_CURRENT_LIST_DIR}/lib/posix_semaphore.c
+  )
+
+target_include_directories(semaphore 
+  PUBLIC 
+  ${CMAKE_CURRENT_LIST_DIR}/lib  
+  )
+
 #build lib interface
 add_library(interface "")
-
+target_link_libraries(interface PUBLIC semaphore)
 target_sources(interface
   PUBLIC 
   ${CMAKE_CURRENT_LIST_DIR}/src/led_interface.c

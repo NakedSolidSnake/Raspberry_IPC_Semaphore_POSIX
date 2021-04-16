@@ -20,7 +20,12 @@ int main(int argc, char *argv[])
         .Set = Set
     };
 
-    LED_Run(NULL, &led_interface);
+    POSIX_Semaphore semaphore = 
+    {
+        .name = "/semaphore"
+    };
+
+    LED_Run(NULL, &semaphore, &led_interface);
     
     return 0;
 }

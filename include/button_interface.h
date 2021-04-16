@@ -2,6 +2,7 @@
 #define BUTTON_INTERFACE_H_
 
 #include <stdbool.h>
+#include <posix_semaphore.h>
 
 /**
  * @brief 
@@ -23,6 +24,6 @@ typedef struct
  * @return true 
  * @return false 
  */
-bool Button_Run(void *object, Button_Interface *button);
+bool Button_Run(void *object, POSIX_Semaphore *semaphore, Button_Interface *button);
 
 #endif /* BUTTON_INTERFACE_H_ */

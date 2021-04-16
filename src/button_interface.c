@@ -9,8 +9,33 @@
 
 #define _1ms    1000
 
-bool Button_Run(void *object, Button_Interface *button)
+bool Button_Run(void *object, POSIX_Semaphore *semaphore, Button_Interface *button)
 {
+    if(button->Init(object) == false)
+		return false;
+
+    if(POSIX_Semaphore_Create(semaphore) == false)
+        return false;
+
+    while(true)
+	{
+        while (true)
+        {
+            if (!button->Read(object))
+            {
+                usleep(_1ms * 100);
+                break;
+            }
+            else
+            {
+                usleep(_1ms);
+            }
+        }
+
+        POSIX_Semaphore_Post(semaphore);
+	}
+
+    POSIX_Semaphore_Cleanup(semaphore);
    
     return false;
 }

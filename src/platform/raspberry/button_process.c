@@ -28,7 +28,12 @@ int main(int argc, char *argv[])
         .Read = Read
     };
 
-    Button_Run(&button, &button_interface);
+    POSIX_Semaphore semaphore = 
+    {
+        .name = "/semaphore"
+    };
+
+    Button_Run(&button, &semaphore, &button_interface);
         
     return 0;
 }
