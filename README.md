@@ -29,12 +29,118 @@ Preencher
 
 ## Implementação
 
+### *posix_semaphore.h*
+```c
+typedef struct 
+{
+    void *handle;
+    const char *name;
+} POSIX_Semaphore;
+```
+
+```c
+bool POSIX_Semaphore_Create(POSIX_Semaphore *semaphore);
+bool POSIX_Semaphore_Get(POSIX_Semaphore *semaphore);
+bool POSIX_Semaphore_Post(POSIX_Semaphore *semaphore);
+bool POSIX_Semaphore_Wait(POSIX_Semaphore *semaphore);
+bool POSIX_Semaphore_Cleanup(POSIX_Semaphore *semaphore);
+```
+
+### *posix_semaphore.c*
+```c
+bool POSIX_Semaphore_Create(POSIX_Semaphore *semaphore)
+{
+    bool status = false;
+
+    do 
+    {
+        if(!semaphore)
+            break;
+
+        semaphore->handle = sem_open(semaphore->name, O_RDWR | O_CREAT, S_IRWXU | S_IRWXG | S_IRWXO, 0);
+        if(!semaphore->handle)
+            break;
+
+        status = true;
+    } while(false);
+
+    return status;
+}
+```
+
+```c
+bool POSIX_Semaphore_Get(POSIX_Semaphore *semaphore)
+{
+    bool status = false;
+
+    do 
+    {
+        if(!semaphore)
+            break;
+
+        if(sem_post(semaphore->handle) == 0)
+            status = true;
+
+        semaphore->handle = sem_open(semaphore->name, O_RDWR);
+        if(!semaphore->handle)
+            break;
+
+        status = true;
+        
+    } while(false);
+
+    return status;
+}
+```
+
+```c
+bool POSIX_Semaphore_Post(POSIX_Semaphore *semaphore)
+{
+    bool status = false;
+    if(semaphore && semaphore->handle)
+    {
+        if(sem_post(semaphore->handle) == 0)
+            status = true;
+    }
+
+    return status;
+}
+```
+
+```c
+bool POSIX_Semaphore_Wait(POSIX_Semaphore *semaphore)
+{
+    bool status = false;
+    if(semaphore && semaphore->handle)
+    {
+        if(sem_wait(semaphore->handle) == 0)
+            status = true;
+    }
+    return status;
+}
+```
+
+```c
+bool POSIX_Semaphore_Cleanup(POSIX_Semaphore *semaphore)
+{
+    bool status = false;
+    if(semaphore && semaphore->handle)
+    {
+        sem_close(semaphore->handle);
+        sem_unlink(semaphore->name);
+        status = true;
+    }
+
+    return status;
+}
+```
+
 Para demonstrar o uso desse IPC, iremos utilizar o modelo Produtor/Consumidor, onde o processo Produtor(_button_process_) vai escrever seu estado interno no arquivo, e o Consumidor(_led_process_) vai ler o estado interno e vai aplicar o estado para si. Aplicação é composta por três executáveis sendo eles:
 * _launch_processes_ - é responsável por lançar os processos _button_process_ e _led_process_ atráves da combinação _fork_ e _exec_
 * _button_interface_ - é reponsável por ler o GPIO em modo de leitura da Raspberry Pi e escrever o estado interno no arquivo
 * _led_interface_ - é reponsável por ler do arquivo o estado interno do botão e aplicar em um GPIO configurado como saída
 
-### *launch_processes*
+### *launch_processes.c*
 
 No _main_ criamos duas variáveis para armazenar o PID do *button_process* e do *led_process*, e mais duas variáveis para armazenar o resultado caso o _exec_ venha a falhar.
 ```c
@@ -71,10 +177,79 @@ if(pid_led == 0)
 }
 ```
 
-## *button_interface*
-descrever o código
-## *led_interface*
-descrever o código
+### *button_interface.h*
+```c
+typedef struct 
+{
+    bool (*Init)(void *object);
+    bool (*Read)(void *object);
+    
+} Button_Interface;
+```
+
+```c
+bool Button_Run(void *object, POSIX_Semaphore *semaphore, Button_Interface *button);
+```
+
+### *button_interface.c*
+```c
+bool Button_Run(void *object, POSIX_Semaphore *semaphore, Button_Interface *button)
+{
+    if(button->Init(object) == false)
+		return false;
+
+    if(POSIX_Semaphore_Create(semaphore) == false)
+        return false;
+
+    while(true)
+	{
+        wait_press(object, button);
+        POSIX_Semaphore_Post(semaphore);
+	}
+
+    POSIX_Semaphore_Cleanup(semaphore);
+   
+    return false;
+}
+```
+
+### *led_interface.h*
+```c
+typedef struct 
+{
+    bool (*Init)(void *object);
+    bool (*Set)(void *object, uint8_t state);
+} LED_Interface;
+```
+
+```c
+bool LED_Run(void *object, POSIX_Semaphore *semaphore, LED_Interface *led);
+```
+
+### *led_interface.c*
+```c
+bool LED_Run(void *object, POSIX_Semaphore *semaphore, LED_Interface *led)
+{
+	int status = 0;
+
+	if(led->Init(object) == false)
+		return false;
+
+	if(POSIX_Semaphore_Create(semaphore) == false)
+		return false;		
+
+	while(true)
+	{
+		if(POSIX_Semaphore_Wait(semaphore) == true)
+		{
+			status ^= 0x01; 
+			led->Set(object, status);
+		}
+	}
+
+	return false;	
+}
+```
 
 ## Compilando, Executando e Matando os processos
 Para compilar e testar o projeto é necessário instalar a biblioteca de [hardware](https://github.com/NakedSolidSnake/Raspberry_lib_hardware) necessária para resolver as dependências de configuração de GPIO da Raspberry Pi.
