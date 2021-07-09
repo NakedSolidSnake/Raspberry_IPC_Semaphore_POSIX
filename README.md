@@ -1,7 +1,3 @@
-<p align="center">
-  <img src="https://www.tutorialsdaddy.com/wp-content/uploads/2016/11/linux-mmap.png">
-</p>
-
 # _Semaphore POSIX_
 
 ## Tópicos
@@ -25,11 +21,56 @@
 * [Referência](#referência)
 
 ## Introdução
-Preencher
+POSIX Semaphore é uma padronização desse recurso para que fosse altamente portável entre os sistemas. Não difere tanto da Semaphore System V, é normalmente usado para sincronização de Threads.
+
+## Systemcalls
+Para utilizar a API referente ao Semaphore é necessário realizar a linkagem com a biblioteca pthread
+
+Esta função cria ou abre um semaphore existente
+```c
+#include <fcntl.h>           /* For O_* constants */
+#include <sys/stat.h>        /* For mode constants */
+#include <semaphore.h>
+
+sem_t *sem_open(const char *name, int oflag);
+sem_t *sem_open(const char *name, int oflag, mode_t mode, unsigned int value);
+```
+
+Esta função incrementa o semaphore, permitindo assim que outro processo ou thread que estejam em estado de wait possa realizar o _lock_
+```c
+#include <semaphore.h>
+
+int sem_post(sem_t *sem);
+```
+
+Essa função decrementa o semaphore apontado pelo descritor.
+```c
+#include <semaphore.h>
+
+int sem_wait(sem_t *sem);
+
+int sem_trywait(sem_t *sem);
+
+int sem_timedwait(sem_t *sem, const struct timespec *abs_timeout);
+```
+Fecha o semaphore, permitindo a liberação do recurso alocado para o seu uso
+```c
+#include <semaphore.h>
+
+int sem_close(sem_t *sem);
+```
+Remove o semaphore imediatamente, o semaphore é destruído quando todos os processos que o utiliza fecha.
+```c
+#include <semaphore.h>
+
+int sem_unlink(const char *name);
+```
 
 ## Implementação
+Para facilitar o uso desse mecanismo, o uso da API referente a Semaphore POSIX é feita através de uma abstração na forma de uma biblioteca.
 
 ### *posix_semaphore.h*
+Para o seu uso é criado um estrutura que guarda o seu contexto, e o nome do semaphore
 ```c
 typedef struct 
 {
@@ -38,6 +79,7 @@ typedef struct
 } POSIX_Semaphore;
 ```
 
+As ações pertinentes ao semaphore permitem criar, pegar, liberar, esperar e liberar o recurso.
 ```c
 bool POSIX_Semaphore_Create(POSIX_Semaphore *semaphore);
 bool POSIX_Semaphore_Get(POSIX_Semaphore *semaphore);
@@ -47,6 +89,8 @@ bool POSIX_Semaphore_Cleanup(POSIX_Semaphore *semaphore);
 ```
 
 ### *posix_semaphore.c*
+Aqui em POSIX_Semaphore_Create criamos o semaphore baseado no nome e seu contexto e guardado em handle.
+
 ```c
 bool POSIX_Semaphore_Create(POSIX_Semaphore *semaphore)
 {
@@ -67,7 +111,7 @@ bool POSIX_Semaphore_Create(POSIX_Semaphore *semaphore)
     return status;
 }
 ```
-
+Na POSIX_Semaphore_Get é verificado se o semaphore está disponível para uso.
 ```c
 bool POSIX_Semaphore_Get(POSIX_Semaphore *semaphore)
 {
@@ -92,7 +136,7 @@ bool POSIX_Semaphore_Get(POSIX_Semaphore *semaphore)
     return status;
 }
 ```
-
+Incrementa o semaphore para o habilitar seu uso
 ```c
 bool POSIX_Semaphore_Post(POSIX_Semaphore *semaphore)
 {
@@ -106,7 +150,7 @@ bool POSIX_Semaphore_Post(POSIX_Semaphore *semaphore)
     return status;
 }
 ```
-
+Aguarda que o semaphore seja liberado para ser usado
 ```c
 bool POSIX_Semaphore_Wait(POSIX_Semaphore *semaphore)
 {
@@ -120,6 +164,7 @@ bool POSIX_Semaphore_Wait(POSIX_Semaphore *semaphore)
 }
 ```
 
+Libera os recursos alocados para o semaphore
 ```c
 bool POSIX_Semaphore_Cleanup(POSIX_Semaphore *semaphore)
 {
@@ -136,9 +181,9 @@ bool POSIX_Semaphore_Cleanup(POSIX_Semaphore *semaphore)
 ```
 
 Para demonstrar o uso desse IPC, iremos utilizar o modelo Produtor/Consumidor, onde o processo Produtor(_button_process_) vai escrever seu estado interno no arquivo, e o Consumidor(_led_process_) vai ler o estado interno e vai aplicar o estado para si. Aplicação é composta por três executáveis sendo eles:
-* _launch_processes_ - é responsável por lançar os processos _button_process_ e _led_process_ atráves da combinação _fork_ e _exec_
-* _button_interface_ - é reponsável por ler o GPIO em modo de leitura da Raspberry Pi e escrever o estado interno no arquivo
-* _led_interface_ - é reponsável por ler do arquivo o estado interno do botão e aplicar em um GPIO configurado como saída
+* _launch_processes_ - é responsável por lançar os processos _button_process_ e _led_process_ através da combinação _fork_ e _exec_
+* _button_interface_ - é responsável por ler o GPIO em modo de leitura da Raspberry Pi e escrever o estado interno no arquivo
+* _led_interface_ - é responsável por ler do arquivo o estado interno do botão e aplicar em um GPIO configurado como saída
 
 ### *launch_processes.c*
 
@@ -178,6 +223,7 @@ if(pid_led == 0)
 ```
 
 ### *button_interface.h*
+Para usar a interface do botão precisa implementar essas duas callbacks para permitir o seu uso
 ```c
 typedef struct 
 {
@@ -186,12 +232,13 @@ typedef struct
     
 } Button_Interface;
 ```
-
+A assinatura do uso da interface corresponde ao contexto do botão, que depende do modo selecionado, o contexo do Semaphore, e a interface do botão devidamente preenchida.
 ```c
 bool Button_Run(void *object, POSIX_Semaphore *semaphore, Button_Interface *button);
 ```
 
 ### *button_interface.c*
+A implementação da interface baseia-se em inicializar o botão, inicializar o Semaphore, e no loop incrementa o semaphore mediante o pressionamento do botão.
 ```c
 bool Button_Run(void *object, POSIX_Semaphore *semaphore, Button_Interface *button)
 {
@@ -214,6 +261,7 @@ bool Button_Run(void *object, POSIX_Semaphore *semaphore, Button_Interface *butt
 ```
 
 ### *led_interface.h*
+Para realizar o uso da interface de LED é necessário preencher os callbacks que serão utilizados pela implementação da interface, sendo a inicialização e a função que altera o estado do LED.
 ```c
 typedef struct 
 {
@@ -222,11 +270,13 @@ typedef struct
 } LED_Interface;
 ```
 
+A assinatura do uso da interface corresponde ao contexto do LED, que depende do modo selecionado, o contexo do Semaphore, e a interface do LED devidamente preenchida.
 ```c
 bool LED_Run(void *object, POSIX_Semaphore *semaphore, LED_Interface *led);
 ```
 
 ### *led_interface.c*
+A implementação da interface baseia-se em inicializar o LED, inicializar o Semaphore, e no loop verifica se há semaphore disponível para poder alterar o seu estado
 ```c
 bool LED_Run(void *object, POSIX_Semaphore *semaphore, LED_Interface *led)
 {
@@ -336,7 +386,7 @@ $ ./kill_process.sh
 ```
 
 ## Conclusão
-Preencher
+POSIX Semaphore é um modo moderno de realizar sincronização entre os acessos as partes críticas do sistema, diferente do Semaphore System V é largamente utilizado para a sincronização de Threads. De qualquer forma é uma alternativa ao Semaphore System V.
 
 ## Referência
 * [Link do projeto completo](https://github.com/NakedSolidSnake/Raspberry_IPC_Semaphore_POSIX)
