@@ -228,7 +228,7 @@ if(pid_led == 0)
 ```
 
 ### *button_interface.h*
-Para usar a interface do botão precisa implementar essas duas callbacks para permitir o seu uso
+Para usar a interface do botão precisa implementar essas duas callbacks para permitir o seu uso.
 ```c
 typedef struct 
 {
@@ -281,7 +281,7 @@ bool LED_Run(void *object, POSIX_Semaphore *semaphore, LED_Interface *led);
 ```
 
 ### *led_interface.c*
-A implementação da interface baseia-se em inicializar o LED, inicializar o Semaphore, e no loop verifica se há semaphore disponível para poder alterar o seu estado
+A implementação da interface baseia-se em inicializar o LED, inicializar o Semaphore, e no loop verifica se há semaphore disponível para poder alterar o seu estado.
 ```c
 bool LED_Run(void *object, POSIX_Semaphore *semaphore, LED_Interface *led)
 {
@@ -344,21 +344,21 @@ $ cd bin
 $ ./launch_processes
 ```
 
-Uma vez executado podemos verificar se os processos estão rodando atráves do comando 
+Uma vez executado podemos verificar se os processos estão rodando atráves do comando:
 ```bash
 $ ps -ef | grep _process
 ```
 
-O output 
+O output:
 ```bash
 cssouza  16871  3449  0 07:15 pts/4    00:00:00 ./button_process
 cssouza  16872  3449  0 07:15 pts/4    00:00:00 ./led_process
 ```
 ## Interagindo com o exemplo
-Dependendo do modo de compilação selecionado a interação com o exemplo acontece de forma diferente
+Dependendo do modo de compilação selecionado a interação com o exemplo acontece de forma diferente.
 
 ### MODO PC
-Para o modo PC, precisamos abrir um terminal e monitorar os LOG's
+Para o modo PC, precisamos abrir um terminal e monitorar os LOG's.
 ```bash
 $ sudo tail -f /var/log/syslog | grep LED
 ```
@@ -391,7 +391,7 @@ $ ./kill_process.sh
 ```
 
 ## Conclusão
-POSIX Semaphore é um modo moderno de realizar sincronização entre os acessos as partes críticas do sistema, diferente do Semaphore System V é largamente utilizado para a sincronização de Threads. De qualquer forma é uma alternativa ao Semaphore System V.
+POSIX Semaphore é um modo moderno de realizar sincronização entre os acessos às partes críticas do sistema, diferente do Semaphore System V é largamente utilizado para a sincronização de Threads. De qualquer forma é uma alternativa ao Semaphore System V.
 
 ## Referência
 * [Link do projeto completo](https://github.com/NakedSolidSnake/Raspberry_IPC_Semaphore_POSIX)
